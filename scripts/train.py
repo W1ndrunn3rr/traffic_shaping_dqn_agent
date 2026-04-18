@@ -72,8 +72,8 @@ def train(cfg: DictConfig) -> None:
 
             loss = agent.train_step(beta)
 
-            if loss is not None:
-                wandb.log({"loss": loss, "step": agent.step_count})
+            if loss is not None and agent.step_count % 100 == 0:
+                wandb.log({"loss": float(loss), "step": agent.step_count})
 
             obs = next_obs
             episode_reward += reward
