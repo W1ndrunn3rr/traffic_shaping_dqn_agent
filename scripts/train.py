@@ -31,8 +31,9 @@ def train(cfg: DictConfig) -> None:
 
     if cfg.renderer.render:
         print("Rendering enabled. This may slow down training.")
-        env = TrafficEnv(max_queue_len=cfg.env.max_queue_len)
-    renderer = TrafficRenderer(render_every=cfg.renderer.render_every)
+        renderer = TrafficRenderer(render_every=cfg.renderer.render_every)
+
+    env = TrafficEnv(max_queue_len=cfg.env.max_queue_len)
 
     rngs = nnx.Rngs(params=0, noise=1)
     agent = RainbowAgent(
