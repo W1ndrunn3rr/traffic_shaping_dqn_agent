@@ -14,7 +14,7 @@ training:
   checkpoint_dir: checkpoints
 
 renderer:
-  render: true
+  render: false
   render_every: 50
 
 wandb:
