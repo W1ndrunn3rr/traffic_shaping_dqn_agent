@@ -2,6 +2,8 @@
 
 Reinforcement learning agent controlling a single intersection traffic light, trained using the Rainbow DQN algorithm implemented in JAX/Flax.
 
+![Traffic Light Controller preview](docs/image.png)
+
 ---
 
 ## Project Structure

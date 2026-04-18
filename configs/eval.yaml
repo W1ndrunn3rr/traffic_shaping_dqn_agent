@@ -7,7 +7,8 @@ hydra:
 
 eval:
   num_episodes: 10
-  checkpoint_path: checkpoints/episode_500
+  checkpoint_path: artifacts/best-model:v11
+  play: true
 
 agent:
   buffer_capacity: 10_000

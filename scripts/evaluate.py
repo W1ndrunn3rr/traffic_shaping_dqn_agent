@@ -6,10 +6,38 @@ import os
 from omegaconf import DictConfig
 import orbax.checkpoint as ocp
 from collections import defaultdict
+import time
 
 from src.environment.traffic_env import TrafficEnv
 from src.rainbow_dqn.agent import RainbowAgent
-from src.rainbow_dqn.network import DuelingDQN
+
+
+def play(cfg: DictConfig) -> None:
+    from src.viz.renderer import TrafficRenderer
+
+    env = TrafficEnv(
+        max_queue_len=cfg.env.max_queue_len,
+        max_steps_size=cfg.env.max_steps,
+    )
+    renderer = TrafficRenderer(render_every=1)
+    agent = load_agent(cfg, cfg.eval.checkpoint_path)
+    policy = agent_policy(agent)
+
+    episode = 0
+    while True:
+        obs, _ = env.reset()
+        episode_reward = 0.0
+        truncated = False
+
+        while not truncated:
+            action = policy(obs)
+            obs, reward, _, truncated, _ = env.step(action)
+            episode_reward += reward
+            renderer.render(obs, episode_reward, episode, env.time_step)
+            time.sleep(1)
+
+        print(f"Episode {episode}  reward: {episode_reward:.1f}")
+        episode += 1
 
 
 def run_episode(env: TrafficEnv, policy, num_steps: int) -> dict:
@@ -93,6 +121,10 @@ def agent_policy(agent: RainbowAgent):
 
 @hydra.main(version_base=None, config_path="../configs", config_name="eval")
 def evaluate(cfg: DictConfig) -> None:
+    if cfg.eval.play:
+        play(cfg)
+        return
+
     env = TrafficEnv(
         max_queue_len=cfg.env.max_queue_len,
         max_steps_size=cfg.env.max_steps,
