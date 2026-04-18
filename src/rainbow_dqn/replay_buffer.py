@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from collections import namedtuple
+from collections import namedtuple, deque
 
 Experience = namedtuple(
     "Experience",
@@ -111,3 +111,31 @@ class PrioritizedReplayBuffer:
 
     def is_ready(self, batch_size: int) -> bool:
         return self.size >= batch_size
+
+
+class NStepBuffer:
+    def __init__(self, n: int, gamma: float):
+        self.n = n
+        self.gamma = gamma
+        self.buffer = deque(maxlen=n)
+
+    def add(self, experience: Experience) -> None:
+        self.buffer.append(experience)
+
+    def is_ready(self) -> bool:
+        return len(self.buffer) == self.n
+
+    def get(self) -> Experience:
+        s0, a0, r_0, _, done = self.buffer[0]
+
+        r_n = r_0
+        for i in range(1, len(self.buffer)):
+            _, _, r, _, done_i = self.buffer[i]
+            r_n += self.gamma**i * r
+            if done_i:
+                done = True
+                break
+
+        _, _, _, s_n, _ = self.buffer[-1]
+
+        return Experience(s0, a0, r_n, s_n, done)

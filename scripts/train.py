@@ -1,12 +1,12 @@
-import numpy as np
+import os
+import shutil
+
 import wandb
 import hydra
 from omegaconf import DictConfig
 from flax import nnx
 import jax.numpy as jnp
-import os
 import orbax.checkpoint as ocp
-
 
 from src.rainbow_dqn.agent import RainbowAgent
 from src.rainbow_dqn.replay_buffer import Experience
@@ -29,7 +29,9 @@ def train(cfg: DictConfig) -> None:
         },
     )
 
-    env = TrafficEnv(max_queue_len=cfg.env.max_queue_len)
+    if cfg.renderer.render:
+        print("Rendering enabled. This may slow down training.")
+        env = TrafficEnv(max_queue_len=cfg.env.max_queue_len)
     renderer = TrafficRenderer(render_every=cfg.renderer.render_every)
 
     rngs = nnx.Rngs(params=0, noise=1)
@@ -49,6 +51,7 @@ def train(cfg: DictConfig) -> None:
 
     beta_start = cfg.training.beta_start
     beta_frames = cfg.training.beta_frames
+    best_reward = -float("inf")
 
     for episode in range(cfg.training.num_episodes):
         obs, _ = env.reset()
@@ -74,7 +77,8 @@ def train(cfg: DictConfig) -> None:
             obs = next_obs
             episode_reward += reward
 
-            renderer.render(obs, episode_reward, episode, agent.step_count)
+            if cfg.renderer.render:
+                renderer.render(obs, episode_reward, episode, agent.step_count)
 
         wandb.log(
             {
@@ -85,9 +89,20 @@ def train(cfg: DictConfig) -> None:
             }
         )
 
-        if episode % cfg.training.save_every == 0:
+        if episode_reward > best_reward:
+            best_reward = episode_reward
+            best_path = f"{checkpoint_dir}/best"
+
+            if os.path.exists(best_path):
+                shutil.rmtree(best_path)
+
             state = nnx.state(agent.online_network)
-            checkpointer.save(f"{checkpoint_dir}/episode_{episode}", state)
+            checkpointer.save(best_path, state)
+            checkpointer.wait_until_finished()
+
+            artifact = wandb.Artifact("best-model", type="model")
+            artifact.add_dir(best_path)
+            wandb.log_artifact(artifact)
 
     renderer.close()
     wandb.finish()

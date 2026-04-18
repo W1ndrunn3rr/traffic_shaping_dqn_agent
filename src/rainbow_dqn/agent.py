@@ -5,7 +5,7 @@ import numpy as np
 import jax
 
 from .network import DuelingDQN
-from .replay_buffer import PrioritizedReplayBuffer, Experience
+from .replay_buffer import PrioritizedReplayBuffer, Experience, NStepBuffer
 
 
 class RainbowAgent:
@@ -24,6 +24,7 @@ class RainbowAgent:
         rngs: nnx.Rngs,
     ) -> None:
         self.replay_buffer = PrioritizedReplayBuffer(buffer_capacity, buffer_alpha)
+        self.n_step_buffer = NStepBuffer(n_steps, gamma)
         self.online_network = DuelingDQN(state_dim, num_actions, dense_size, rngs)
         self.target_network = DuelingDQN(state_dim, num_actions, dense_size, rngs)
         self.rng_key = jax.random.PRNGKey(0)
@@ -49,6 +50,12 @@ class RainbowAgent:
         return int(jnp.argmax(q_values))
 
     def store_experience(self, experience: Experience) -> None:
+        self.n_step_buffer.add(experience)
+
+        if self.n_step_buffer.is_ready():
+            n_step_experience = self.n_step_buffer.get()
+            self.replay_buffer.add(n_step_experience)
+
         self.replay_buffer.add(experience)
 
     def _update_target_network(self) -> None:
@@ -83,6 +90,7 @@ class RainbowAgent:
             self.online_network, batch
         )
         self.optimizer.update(self.online_network, grads)
+        optax.clip_by_global_norm(10.0)
 
         self.rng_key, key1 = jax.random.split(self.rng_key)
         self.rng_key, key2 = jax.random.split(self.rng_key)
