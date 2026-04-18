@@ -1,0 +1,20 @@
+hydra:
+  job:
+    chdir: false
+
+defaults:
+  - agent: rainbow
+  - env: traffic
+
+training:
+  num_episodes: 500
+  beta_start: 0.4
+  beta_frames: 100_000
+  save_every: 50
+  checkpoint_dir: checkpoints
+
+renderer:
+  render_every: 50
+
+wandb:
+  project: traffic-rainbow-dqn

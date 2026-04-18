@@ -3,7 +3,7 @@ name = "traffic-lights-bot"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "flax>=0.12.6",
     "gymnasium>=1.2.3",
@@ -12,8 +12,15 @@ dependencies = [
     "matplotlib>=3.10.8",
     "numpy>=2.4.4",
     "optax>=0.2.8",
+    "orbax>=0.1.9",
     "pygame>=2.6.1",
     "pygame-ce>=2.5.7",
     "rlax>=0.1.8",
     "wandb>=0.26.0",
 ]
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+where = ["."]
