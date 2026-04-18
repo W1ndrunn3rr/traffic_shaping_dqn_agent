@@ -46,8 +46,6 @@ htmlcov/
 # Virtual environments and local Python tooling
 .venv/
 venv/
-env/
-ENV/
 .python-version
 
 # Editor / IDE
