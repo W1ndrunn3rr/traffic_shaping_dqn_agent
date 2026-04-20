@@ -1,10 +1,8 @@
 import numpy as np
-import jax.numpy as jnp
-from flax import nnx
+import torch
 import hydra
 import os
 from omegaconf import DictConfig
-import orbax.checkpoint as ocp
 from collections import defaultdict
 import time
 
@@ -88,7 +86,6 @@ def random_policy(obs) -> int:
 
 
 def load_agent(cfg: DictConfig, checkpoint_path: str) -> RainbowAgent:
-    rngs = nnx.Rngs(params=0, noise=1)
     agent = RainbowAgent(
         buffer_capacity=cfg.agent.buffer_capacity,
         buffer_alpha=cfg.agent.buffer_alpha,
@@ -100,21 +97,15 @@ def load_agent(cfg: DictConfig, checkpoint_path: str) -> RainbowAgent:
         n_steps=cfg.agent.n_steps,
         batch_size=cfg.agent.batch_size,
         update_target_every=cfg.agent.update_target_every,
-        rngs=rngs,
     )
-    checkpointer = ocp.StandardCheckpointer()
-    abstract_state = nnx.state(agent.online_network)
-    state = checkpointer.restore(
-        os.path.abspath(checkpoint_path),
-        target=abstract_state,
-    )
-    nnx.update(agent.online_network, state)
+    state_dict = torch.load(os.path.abspath(checkpoint_path), weights_only=True)
+    agent.online_network.load_state_dict(state_dict)
     return agent
 
 
 def agent_policy(agent: RainbowAgent):
     def policy(obs) -> int:
-        return agent.select_action(jnp.array(obs))
+        return agent.select_action(torch.tensor(obs, dtype=torch.float32))
 
     return policy
 

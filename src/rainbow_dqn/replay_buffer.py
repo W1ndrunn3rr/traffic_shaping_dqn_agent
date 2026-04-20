@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import torch
 from collections import namedtuple, deque
 
 Experience = namedtuple(
@@ -93,14 +94,22 @@ class PrioritizedReplayBuffer:
         experiences = [self.data[idx] for idx in indexes]
 
         return {
-            "states": np.array([e.state for e in experiences], dtype=np.float32),
-            "actions": np.array([e.action for e in experiences], dtype=np.int32),
-            "rewards": np.array([e.reward for e in experiences], dtype=np.float32),
-            "next_states": np.array(
-                [e.next_state for e in experiences], dtype=np.float32
+            "states": torch.tensor(
+                np.array([e.state for e in experiences]), dtype=torch.float32
             ),
-            "dones": np.array([e.done for e in experiences], dtype=np.float32),
-            "weights": weights,
+            "actions": torch.tensor(
+                np.array([e.action for e in experiences]), dtype=torch.int64
+            ),
+            "rewards": torch.tensor(
+                np.array([e.reward for e in experiences]), dtype=torch.float32
+            ),
+            "next_states": torch.tensor(
+                np.array([e.next_state for e in experiences]), dtype=torch.float32
+            ),
+            "dones": torch.tensor(
+                np.array([e.done for e in experiences]), dtype=torch.float32
+            ),
+            "weights": torch.tensor(weights, dtype=torch.float32),
             "indexes": indexes,
         }
 

@@ -1,6 +1,6 @@
 # Traffic Light Controller — Rainbow DQN
 
-Reinforcement learning agent controlling a single intersection traffic light, trained using the Rainbow DQN algorithm implemented in JAX/Flax.
+Reinforcement learning agent controlling a single intersection traffic light, trained using the Rainbow DQN algorithm implemented in PyTorch.
 
 ![Traffic Light Controller preview](docs/image.png)
 
@@ -60,7 +60,7 @@ Custom Gymnasium environment simulating a single four-way intersection. The agen
 | Dueling Network | ✅ | Separates state value V(s) from action advantage A(s,a) |
 | Prioritized Replay | ✅ | Samples rush hour experiences more frequently |
 | Noisy Nets | ✅ | Replaces epsilon-greedy with learned exploration |
-| N-step Returns | ⏳ n=1 | Better credit assignment for delayed effects of signal changes |
+| N-step Returns | ✅ | Better credit assignment for delayed effects of signal changes |
 | Distributional (C51) | ❌ planned | Models full distribution of waiting times, not just the mean |
 
 ---
@@ -69,11 +69,8 @@ Custom Gymnasium environment simulating a single four-way intersection. The agen
 
 | Library | Purpose |
 |---|---|
-| jax[cpu] | JIT compilation, autodiff, vmap |
-| flax 0.11+ | Neural network — Dueling + Noisy Nets (nnx API) |
-| optax | Adam optimizer |
-| rlax | RL building blocks |
-| orbax-checkpoint | Model checkpointing |
+| torch | Neural networks, autodiff, GPU acceleration |
+| torchrl | NoisyLinear, RL building blocks |
 | gymnasium | Environment base class |
 | pygame-ce | Visualization (Apple Silicon compatible) |
 | wandb | Experiment tracking |
@@ -98,7 +95,7 @@ uv sync
 
 ```bash
 just train
-just eval checkpoints/episode_500
+just eval checkpoints/best
 just clean
 ```
 
@@ -106,7 +103,7 @@ Manual:
 
 ```bash
 PYTHONPATH=. uv run python scripts/train.py
-PYTHONPATH=. uv run python scripts/evaluate.py eval.checkpoint_path=checkpoints/episode_500
+PYTHONPATH=. uv run python scripts/evaluate.py eval.checkpoint_path=checkpoints/best
 ```
 
 Override config from CLI (Hydra):
@@ -117,13 +114,14 @@ PYTHONPATH=. uv run python scripts/train.py agent.learning_rate=3e-4 agent.batch
 
 ---
 
-## Known Issues & Gotchas
+## Checkpointing
 
-- Flax 0.11+ broke several APIs vs older tutorials: `nnx.Optimizer` requires `wrt=nnx.Param`, `optimizer.update` requires `(model, grads)`, `nnx.update` requires `nnx.state(model)` as second argument.
-- Orbax requires absolute checkpoint paths — use `os.path.abspath()` before saving/restoring.
-- JAX RNG cannot be mutated inside traced functions (`value_and_grad`) — keep `rng_key` on the agent and split externally before each forward pass.
-- Hydra is incompatible with Python 3.14 — use Python 3.12.
-- pygame (original) has broken font module on macOS — use `pygame-ce` instead.
+Model weights are saved using `torch.save` and restored with `load_state_dict`:
+
+```python
+torch.save(agent.online_network.state_dict(), "checkpoints/best/model.pt")
+agent.online_network.load_state_dict(torch.load("checkpoints/best/model.pt", weights_only=True))
+```
 
 ---
 

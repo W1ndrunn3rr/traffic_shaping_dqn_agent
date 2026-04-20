@@ -4,9 +4,7 @@ import shutil
 import wandb
 import hydra
 from omegaconf import DictConfig
-from flax import nnx
-import jax.numpy as jnp
-import orbax.checkpoint as ocp
+import torch
 
 from src.rainbow_dqn.agent import RainbowAgent
 from src.rainbow_dqn.replay_buffer import Experience
@@ -18,7 +16,6 @@ from src.viz.renderer import TrafficRenderer
 def train(cfg: DictConfig) -> None:
     checkpoint_dir = os.path.abspath(cfg.training.checkpoint_dir)
     os.makedirs(checkpoint_dir, exist_ok=True)
-    checkpointer = ocp.StandardCheckpointer()
 
     wandb.init(
         project=cfg.wandb.project,
@@ -35,7 +32,6 @@ def train(cfg: DictConfig) -> None:
 
     env = TrafficEnv(max_queue_len=cfg.env.max_queue_len)
 
-    rngs = nnx.Rngs(params=0, noise=1)
     agent = RainbowAgent(
         buffer_capacity=cfg.agent.buffer_capacity,
         buffer_alpha=cfg.agent.buffer_alpha,
@@ -47,7 +43,6 @@ def train(cfg: DictConfig) -> None:
         n_steps=cfg.agent.n_steps,
         batch_size=cfg.agent.batch_size,
         update_target_every=cfg.agent.update_target_every,
-        rngs=rngs,
     )
 
     beta_start = cfg.training.beta_start
@@ -64,7 +59,7 @@ def train(cfg: DictConfig) -> None:
                 1.0, agent.step_count / beta_frames
             )
 
-            action = agent.select_action(jnp.array(obs))
+            action = agent.select_action(torch.tensor(obs, dtype=torch.float32))
             next_obs, reward, terminated, truncated, _ = env.step(action)
             agent.store_experience(
                 Experience(obs, action, reward, next_obs, terminated or truncated)
@@ -73,7 +68,7 @@ def train(cfg: DictConfig) -> None:
             loss = agent.train_step(beta)
 
             if loss is not None and agent.step_count % 100 == 0:
-                wandb.log({"loss": float(loss), "step": agent.step_count})
+                wandb.log({"loss": loss, "step": agent.step_count})
 
             obs = next_obs
             episode_reward += reward
@@ -97,15 +92,15 @@ def train(cfg: DictConfig) -> None:
             if os.path.exists(best_path):
                 shutil.rmtree(best_path)
 
-            state = nnx.state(agent.online_network)
-            checkpointer.save(best_path, state)
-            checkpointer.wait_until_finished()
+            os.makedirs(best_path, exist_ok=True)
+            torch.save(agent.online_network.state_dict(), f"{best_path}/model.pt")
 
             artifact = wandb.Artifact("best-model", type="model")
             artifact.add_dir(best_path)
             wandb.log_artifact(artifact)
 
-    renderer.close()
+    if cfg.renderer.render:
+        renderer.close()
     wandb.finish()
 
 
